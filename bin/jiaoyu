@@ -1,0 +1,450 @@
+#!/usr/bin/env php
+<?php
+
+	require_once(__DIR__."/../lib/jiaoyu/exceptions/JiaoyuException.php");
+	require_once(__DIR__."/../lib/jiaoyu/exceptions/JsonException.php");
+	require_once(__DIR__."/../lib/jiaoyu/utils/JsonUtils.php");
+
+
+	/**
+	 * Command line utility for Jiaoyu framework.  This file doesn't get copied into a new Jiaoyu project
+	 * because it is meant to be run from a git checkout of the framework project.
+	 *
+	 * @author Gabriel Comeau
+	 * @package Jiaoyu
+	 */
+	class JiaoyuCli {
+
+		const CORE_CONFIG_FILE = 'CoreConfig.php';
+
+
+		/**
+		 * Check that the jiaoyu executable is running out of a valid jiaoyu 'checkout' or
+		 * jiaoyu project.
+		 */
+		public static function init() {
+			if (!file_exists(__DIR__ . "/../lib/jiaoyu/JiaoyuCore.php")) {
+				throw new Exception("jiaoyu cli script not located in proper jiaoyu folder!");
+			}
+		}
+
+		/**
+		 * Prints out the help message and quits.
+		 */
+		public static function printHelpAndDie() {
+			echo "[Jiaoyu Framework - CLI Options]\n";
+			echo "[new <optional path> - Create new project in current directory (or at the path provided)]\n";
+			echo "[update <optional path> - Update framework files in current directory (or at the path provided)]\n";
+			echo "[reconfig <optional path> - Rebuilds the CoreConfig file in current directory (or at path provided)]\n";
+			echo "[check-configs <optional path> - Checks all of the project's configuration files for invalid syntax - current directory or path provided]\n";
+			die();
+		}
+
+		/**
+		 * Create a new Jiaoyu project at $path
+		 *
+		 * @param String $path - Where to put the new project
+		 */
+		public static function newProject($path = ".") {
+			// Check if this path exists
+			if (!file_exists($path) || !is_dir($path)) {
+				self::errorAndDie("'$path' is not a valid directory.");
+			}
+
+			// Is there already a Jiaoyu project in this directory?
+			if (self::isExistingJiaoyuProject($path)) {
+				self::errorAndDie("There is already an existing Jiaoyu project at '$path'.");
+			}
+
+			echo "[Creating new Jiaoyu project at: $path]\n";
+
+			// Create the folder structure
+			$err = self::createNewProjectFolders($path);
+			if ($err != "") {
+				self::errorAndDie($err);
+			}
+
+			echo "[Created folder structure]\n";
+
+			// Copy the files into place
+			self::copyFiles($path);
+
+			echo "[Copied framework files]\n";
+
+			// Create the coreconfig
+
+			self::createCoreConfig($path);
+			echo "[Created CoreConfig file]\n";
+
+			echo "[All done, enjoy your project!]\n";
+		}
+
+		/**
+		 * Replace everything in /lib/jiaoyu, /lib/Atlas and a few other
+		 * core framework files with whatever's in the checkout folder where
+		 * the executable lives.
+		 *
+		 * @param String $path - Path to the project being updated
+		 */
+		public static function updateProject($path = ".") {
+			// Check if this path exists
+			if (!file_exists($path) || !is_dir($path)) {
+				self::errorAndDie("'$path' is not a valid directory.");
+			}
+
+			// Is there already a Jiaoyu project in this directory?
+			if (!self::isExistingJiaoyuProject($path)) {
+				self::errorAndDie("No existing Jiaoyu project at '$path'.");
+			}
+
+			// Overwrite the framework files
+			self::copyFiles($path, true);
+			echo "[Updated framework files]\n";
+
+			echo "[All done, enjoy your project!]\n";
+		}
+
+		/**
+		 * Re-build the CoreConfig file for a project at the given path
+		 *
+		 * @param String $path - Project location
+		 */
+		public static function reconfig($path = ".") {
+			if (!self::isExistingJiaoyuProject($path)) {
+				errorAndDie("No existing Jiaoyu project at: $path");
+			}
+
+			echo "[Re-creating CoreConfig file for project at: $path]\n";
+			self::createCoreConfig($path);
+			echo "[All done!]\n";
+		}
+
+		/**
+		 * Check all of the json configuration files for an existing
+		 * project for basic validity.
+		 *
+		 * @param String $path - Project location
+		 */
+		public static function checkConfigs($path = ".") {
+			echo "[Checking Jiaoyu configuration files]\n";
+			echo "[Checking app/conf/config.json]\n";
+			$confPath = $path . "/app/conf/config.json";
+			if (!file_exists($confPath)) {
+				self::errorAndDie("No such file $path/app/conf/config.json");
+			}
+			try {
+				$decoded = JsonUtils::decode(file_get_contents($confPath));
+			} catch (JsonException $je) {
+				self::errorAndDie("Couldn't parse $confPath - ".$je->getMessage());
+			}
+
+			echo "[File: app/conf/config.json exists and is valid JSON]\n";
+
+			echo "[Checking app/conf/routes.json]\n";
+			$routesPath = $path . "/app/conf/routes.json";
+			if (!file_exists($routesPath)) {
+				self::errorAndDie("No such file $path/app/conf/routes.json");
+			}
+			try {
+				$decoded = JsonUtils::decode(file_get_contents($routesPath));
+			} catch (JsonException $je) {
+				self::errorAndDie("Couldn't parse $routesPath - ".$je->getMessage());
+			}
+
+			echo "[File: app/conf/routes.json exists and is valid JSON]\n";
+
+			echo "[Checking app/conf/widgets.json]\n";
+			$widgetsPath = $path . "/app/conf/widgets.json";
+			if (!file_exists($widgetsPath)) {
+				self::errorAndDie("No such file $path/app/conf/widgets.json");
+			}
+
+			// widgets.json CAN be empty (framework expects this possibility) so that's
+			// a valid state too.
+			if (file_get_contents($widgetsPath) != "") {
+				try {
+					$decoded = JsonUtils::decode(file_get_contents($widgetsPath));
+				} catch (JsonException $je) {
+					self::errorAndDie("Couldn't parse $widgetsPath - ".$je->getMessage());
+				}
+
+				echo "[File: app/conf/widgets.json exists and is valid JSON]\n";
+			} else {
+				echo "[File: app/conf/widgets.json exists and is empty (valid for this file, if you aren't using any widgets)]\n";
+			}
+
+			echo "[All configs present and have valid JSON]\n";
+		}
+
+		/**
+		 * Check if there's an existing Jiaoyu project at provided path.
+		 *
+		 * This checks to see if there's an existing CoreConfig.php file there.
+		 *
+		 * @param String $path - Absolute path to check
+		 * @return Boolean - Whether or not there's a Jiaoyu project there
+		 */
+		private static function isExistingJiaoyuProject($path) {
+			// Does this path even exist?
+			if (!file_exists($path)) {
+				return false;
+			}
+
+			// Make sure this is a path to a directory (and not a file)
+			if (!is_dir($path)) {
+				return false;
+			}
+
+			if (preg_match("/.+\/$/", $path)) {
+				if (file_exists($path . self::CORE_CONFIG_FILE)) {
+					return true;
+				} else {
+					return false;
+				}
+			} else {
+				if (file_exists($path . "/" . self::CORE_CONFIG_FILE)) {
+					return true;
+				} else {
+					return false;
+				}
+			}
+
+			return false;
+		}
+
+		/**
+		 * Creates the basic folder structure for a new Jiaoyu project
+		 *
+		 * @param String $path Base folder of the new project
+		 * @return String An error if something goes wrong or empty string if all's good
+		 */
+		private static function createNewProjectFolders($path) {
+			$path = self::stripTrailingSlash($path);
+
+			// App directory structure
+			if (!mkdir($path . "/" . "app")) {
+				return "Couldn't create 'app' directory.";
+			}
+
+			mkdir($path . "/app/" . "conf");
+			mkdir($path . "/app/" . "controllers");
+			mkdir($path . "/app/" . "models");
+			mkdir($path . "/app/" . "views");
+
+			// Webroot directory structure
+			if (!mkdir($path . "/" . "webroot")) {
+				return "Couldn't create 'webroot' directory.";
+			}
+
+			mkdir($path . "/webroot/" . "css");
+			mkdir($path . "/webroot/css/" . "jiaoyu");
+			mkdir($path . "/webroot/" . 'images');
+			mkdir($path . "/webroot/" . 'js');
+			mkdir($path . "/webroot/js/" . "jiaoyu");
+
+			// Lib directory structure
+			if (!mkdir($path . "/" . "lib")) {
+				return "Couldn't create 'lib' directory.";
+			}
+
+			mkdir($path . "/lib/" . "Atlas");
+			mkdir($path . "/lib/Atlas/" . "exceptions");
+
+			mkdir($path . "/lib/" . "jiaoyu");
+			mkdir($path . "/lib/jiaoyu/" . "auth");
+			mkdir($path . "/lib/jiaoyu/" . "controller");
+			mkdir($path . "/lib/jiaoyu/" . "errors");
+			mkdir($path . "/lib/jiaoyu/" . "exceptions");
+			mkdir($path . "/lib/jiaoyu/" . "http");
+			mkdir($path . "/lib/jiaoyu/" . "resources");
+			mkdir($path . "/lib/jiaoyu/resources/" . "views");
+			mkdir($path . "/lib/jiaoyu/" . "utils");
+			mkdir($path . "/lib/jiaoyu/" . "view");
+
+
+
+			// Bin directory structure
+			if (!mkdir($path . "/" . "bin")) {
+				return "Couldn't create 'bin' directory.";
+			}
+
+			return "";
+		}
+
+		/**
+		 * Copies the framework files from their source to their destination.  This can work
+		 * in "update" or "new" mode.  Update mode skips a few files and folders that a user
+		 * was bound to over-write (app/ and the .gitignore).
+		 *
+		 * @param String $path - Path to the project
+		 * @param Boolean $isUpdate - Whether or not this is update mode (defaults to false)
+		 */
+		private static function copyFiles($path, $isUpdate = false) {
+			$path = self::stripTrailingSlash($path);
+
+			// Copy the files into the app folder
+			if (!$isUpdate) {
+				$appFolderPath = __DIR__ . "/../app";
+				self::copyFolderFiles($appFolderPath . "/conf", $path . "/app/conf");
+				self::copyFolderFiles($appFolderPath . "/controllers", $path . "/app/controllers");
+				self::copyFolderFiles($appFolderPath . "/models", $path . "/app/models");
+				self::copyFolderFiles($appFolderPath . "/views", $path . "/app/views");
+			}
+
+			// Copy into lib folder
+			$libFolderPath = __DIR__ . "/../lib";
+			// Atlas
+			self::copyFolderFiles($libFolderPath . "/Atlas", $path . "/lib/Atlas");
+			self::copyFolderFiles($libFolderPath . "/Atlas/exceptions", $path . "/lib/Atlas/exceptions");
+			// Jiaoyu
+			self::copyFolderFiles($libFolderPath . "/jiaoyu/auth", $path . "/lib/jiaoyu/auth");
+			self::copyFolderFiles($libFolderPath . "/jiaoyu/controller", $path . "/lib/jiaoyu/controller");
+			self::copyFolderFiles($libFolderPath . "/jiaoyu/errors", $path . "/lib/jiaoyu/errors");
+			self::copyFolderFiles($libFolderPath . "/jiaoyu/exceptions", $path . "/lib/jiaoyu/exceptions");
+			self::copyFolderFiles($libFolderPath . "/jiaoyu/http", $path . "/lib/jiaoyu/http");
+			self::copyFolderFiles($libFolderPath . "/jiaoyu/resources", $path . "/lib/jiaoyu/resources");
+			self::copyFolderFiles($libFolderPath . "/jiaoyu/resources/views", $path . "/lib/jiaoyu/resources/views");
+			self::copyFolderFiles($libFolderPath . "/jiaoyu/utils", $path . "/lib/jiaoyu/utils");
+			self::copyFolderFiles($libFolderPath . "/jiaoyu/view", $path . "/lib/jiaoyu/view");
+
+			// Copy into webroot
+			$webrootFolderPath = __DIR__ . "/../webroot";
+			self::copyFolderFiles($webrootFolderPath, $path . "/webroot");
+			self::copyFolderFiles($webrootFolderPath . "/css/jiaoyu", $path . "/webroot/css/jiaoyu");
+			self::copyFolderFiles($webrootFolderPath . "/js/jiaoyu", $path . "/webroot/js/jiaoyu");
+
+			// Now copy the .gitignore as a nicety
+			if (!$isUpdate) {
+				copy(__DIR__ . "/../.gitignore", $path . "/.gitignore");
+			}
+		}
+
+		/**
+		 * Copies files from an individual folder to another.  Skips "..", "." and other
+		 * folders.
+		 *
+		 * @param String $sourceFolderPath - Path to the source folder
+		 * @param String $destFolderPath - Path to the destination folder
+		 */
+		private static function copyFolderFiles($sourceFolderPath, $destFolderPath) {
+			$files = scandir($sourceFolderPath);
+			foreach ($files as $file) {
+				if ($file == "." || $file == ".." || is_dir($sourceFolderPath . "/" . $file)) {
+					continue;
+				} else {
+					if (file_exists($destFolderPath."/".$file)) {
+						unlink($destFolderPath."/".$file);
+					}
+					copy($sourceFolderPath . "/" . $file, $destFolderPath . "/" . $file);
+				}
+			}
+		}
+
+		/**
+		 * Creates a CoreConfig.php file for the project
+		 *
+		 * @param String $path - Path to the project
+		 */
+		private static function createCoreConfig($path) {
+			$path = self::stripTrailingSlash($path);
+
+			$contents = self::getCoreConfigContent($path);
+			$file = fopen($path.'/'.self::CORE_CONFIG_FILE, 'w+');
+			fwrite($file, $contents);
+			fclose($file);
+		}
+
+		/**
+		 * Get the content of the CoreConfig file.
+		 *
+		 * @param String $path Absolute path to the Jiaoyu project
+		 * @return String Content to put into the CoreConfig file
+		 */
+		private static function getCoreConfigContent($path) {
+			$flashKey = md5(mt_rand(0, 999999) . time() . mt_rand(0, 999999));
+
+			$coreConf = "<?php\n\t";
+			$coreConf .= "define('JIAOYU_PROJECT_HOME', '$path');\n\t";
+			$coreConf .= "define('JIAOYU_FLASH_KEY', '$flashKey');\n";
+			return $coreConf;
+		}
+
+		/**
+		 * Helper to remove a trailing slash from the path
+		 *
+		 * @param String $path - Path to strip
+		 * @return String Path without trailing slash
+		 */
+		private static function stripTrailingSlash($path) {
+			// Strip a trailing slash
+			if (preg_match("/.+\/$/", $path)) {
+				return substr($path, 0, -1);
+			} else {
+				return $path;
+			}
+		}
+
+		/**
+		 * Fatal error handler.  Prints out the error and kills the process.
+		 *
+		 * @param String $message Specific error message.
+		 */
+		private static function errorAndDie($message) {
+			echo "[Jiaoyu] - Error: $message\n";
+			die();
+		}
+
+	}
+
+	JiaoyuCli::init();
+
+	/*
+	 	Possible args:
+
+	 	./jiaoyu new <optional path>
+	 	./jiaoyu update <optional path>
+	 	./jiaoyu reconfig <optional path>
+	 	./jiaoyu check-configs <optional path>
+	 */
+
+	if (isset($argv[1])) {
+		switch (strtolower($argv[1])) {
+			case "new":
+				if (isset($argv[2])) {
+					JiaoyuCli::newProject($argv[2]);
+				} else {
+					JiaoyuCli::newProject();
+				}
+				break;
+
+			case "update":
+				if (isset($argv[2])) {
+					JiaoyuCli::updateProject($argv[2]);
+				} else {
+					JiaoyuCli::updateProject();
+				}
+				break;
+
+
+			case "reconfig":
+				if (isset($argv[2])) {
+					JiaoyuCli::reconfig($argv[2]);
+				} else {
+					JiaoyuCli::reconfig();
+				}
+				break;
+
+			case "check-configs":
+				if (isset($argv[2])) {
+					JiaoyuCli::checkConfigs($argv[2]);
+				} else {
+					JiaoyuCli::checkConfigs();
+				}
+				break;
+
+			default:
+				JiaoyuCli::printHelpAndDie();
+		}
+	} else {
+		JiaoyuCli::printHelpAndDie();
+	}

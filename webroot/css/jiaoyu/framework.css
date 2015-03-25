@@ -1,0 +1,126 @@
+body {
+	margin: 0;
+	padding: 0;
+	color: rgb(136,136,136);
+	background-color: black;
+}
+
+.top-titlebar {
+	text-align: left;
+	padding: 7px;
+	min-height: 30px;
+	border-bottom: 1px solid rgb(136,136,136);
+}
+
+.frameworktitle {
+	font-size: 20px;
+	font-weight: bold;
+	color: white;
+	font-family: "Ubuntu", sans-serif;
+}
+
+.content {
+	width: 80%;
+	margin-left: auto;
+	margin-right: auto;
+	font-family: "Droid Sans", sans-serif;
+	padding: 20px;
+}
+
+.content h1 {
+	text-align: center;
+	color: rgb(255,150,0);
+}
+
+.important-message {
+	text-align: center;
+}
+
+
+.stacktrace-holder {
+	padding: 5px;
+}
+
+.stacktrace {
+	font-family: "Ubuntu Mono", monospace;
+	border-collapse: collapse;
+	width: 100%;
+}
+
+.stacktrace table, th, td {
+	border: 1px solid rgb(136,136,136);
+	padding: 5px;
+}
+
+.header-row {
+	background-color: black;
+	color: white;
+}
+
+.even-row {
+	background-color: rgb(24,24,24);
+}
+
+.odd-row {
+	background-color: black;
+}
+
+.stacktrace .class-name {
+	font-weight: bold;
+	color: rgb(255,150,0);
+}
+
+.stacktrace .function-name {
+	color: rgb(42,159,214);
+	font-weight: bold;
+}
+
+.stacktrace .arg {
+	font-style: italic;
+}
+
+.stacktrace .line {
+	color: rgb(42,159,214);
+	font-weight: bold;
+}
+
+.stacktrace .mousable {
+	text-decoration: underline;
+	color: rgb(119,179,0);
+}
+
+
+/* Superglobals debug */
+
+.superglobals-holder {
+	margin-top: 30px;
+}
+
+.superglobal-table {
+	font-family: "Ubuntu Mono", monospace;
+	border-collapse: collapse;
+	width: 100%;
+	margin-bottom: 30px;
+}
+
+.superglobal-table table, th, td {
+	border: 1px solid rgb(136,136,136);
+	padding: 5px;
+}
+
+.superglobal-table td {
+	font-size: 14px;
+}
+
+.popup {
+	background-color: white;
+	border: 1px solid black;
+	width: 25%;
+	margin-left: auto;
+	margin-right: auto;
+	position: absolute;
+	top: 33%;
+	left: 40%;
+	padding: 15px;
+	color: black;
+}

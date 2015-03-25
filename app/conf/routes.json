@@ -1,0 +1,20 @@
+[
+    {
+        "name": "home",
+        "path": "/",
+        "controller": "MainController",
+        "action": "homeAction",
+        "methods": [
+            "GET"
+        ]
+    },
+    {
+        "name": "files",
+        "path": "/file",
+        "controller": "MainController",
+        "action": "fileAction",
+        "methods": [
+            "POST"
+        ]
+    }
+]
