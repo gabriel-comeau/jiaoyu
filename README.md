@@ -1,4 +1,4 @@
-#Jiauyo - Educational MVC Framework
+#Jiaoyu - Educational MVC Framework
 
 ## What is it? / Why?
 
@@ -7,6 +7,22 @@ Jiaoyu is a very simple MVC PHP framework.  It is first and foremost an **educat
 Of all of the MVC frameworks I've used my favorite two have by far been Laravel for PHP and Play! for Java and Scala.  I shamelessly admit to borrowing heavily from their outer-facing APIs - especially Laravel's.  If you are familiar with Laravel, you'll notice a lot of similarity almost immediately.  A huge difference is that Laravel uses their Inversion of Control container to make the outward facing API be mostly a collection of static calls to what appear to be static classes.  Under the hood there are instantiated objects performing the work.  In Jiaoyu this is not the case - those static calls really are static calls to static classes.  This means in most cases if you want to see how a given call works you just need to read the code for the method you are calling.  Again, flexibility sacrificed for the sake of being able to very simply follow the action.
 
 Once again, and I can't really state this enough, you **should not use this framework** for any kind of code that even *might* end up in production somewhere.  If you do so and run into problems, you are completely on your own.  Consider this fair warning.  If you want a production ready MVC framework for PHP with a similar (but much more fully featured) API and with good documentation, security patches and all the stuff you actually need for production code, simply use [Laravel](http://laravel.com).
+
+## Table of Contents ##
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [A Trip Through The Framework](#a-trip-through-the-framework)
+- [How To Use Things](#how-to-use-things)
+    - [CLI Tool](#cli-tool)
+    - [Routes](#routes)
+    - [Controllers](#controllers)
+    - [Views](#views)
+    - [Widgets](#widgets)
+    - [Sessions and Cookies](#sessions-and-cookies)
+    - [Auth](#auth)
+    - [Atlas ORM](#atlas-orm)
+- [FAQ](#faq)
+
 
 ## Requirements ##
 
