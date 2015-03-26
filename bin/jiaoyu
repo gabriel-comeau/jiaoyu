@@ -313,8 +313,9 @@
 			self::copyFolderFiles($webrootFolderPath . "/css/jiaoyu", $path . "/webroot/css/jiaoyu");
 			self::copyFolderFiles($webrootFolderPath . "/js/jiaoyu", $path . "/webroot/js/jiaoyu");
 
-			// Now copy the .gitignore as a nicety
+			// Now copy config.json.tpl into the proper config file and then copy the .gitignore as a nicety
 			if (!$isUpdate) {
+				copy($appFolderPath."/conf/config.json.tpl", $path."/app/conf/config.json");
 				copy(__DIR__ . "/../.gitignore", $path . "/.gitignore");
 			}
 		}
