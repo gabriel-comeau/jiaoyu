@@ -297,6 +297,8 @@
 			self::copyFolderFiles($libFolderPath . "/Atlas", $path . "/lib/Atlas");
 			self::copyFolderFiles($libFolderPath . "/Atlas/exceptions", $path . "/lib/Atlas/exceptions");
 			// Jiaoyu
+
+			self::copyFolderFiles($libFolderPath . "/jiaoyu", $path . "/lib/jiaoyu");
 			self::copyFolderFiles($libFolderPath . "/jiaoyu/auth", $path . "/lib/jiaoyu/auth");
 			self::copyFolderFiles($libFolderPath . "/jiaoyu/controller", $path . "/lib/jiaoyu/controller");
 			self::copyFolderFiles($libFolderPath . "/jiaoyu/errors", $path . "/lib/jiaoyu/errors");
@@ -363,11 +365,27 @@
 		 */
 		private static function getCoreConfigContent($path) {
 			$flashKey = md5(mt_rand(0, 999999) . time() . mt_rand(0, 999999));
+			$path = self::calculateAbsoluteDestPath($path);
 
 			$coreConf = "<?php\n\t";
 			$coreConf .= "define('JIAOYU_PROJECT_HOME', '$path');\n\t";
 			$coreConf .= "define('JIAOYU_FLASH_KEY', '$flashKey');\n";
 			return $coreConf;
+		}
+
+		/**
+		 * Get the absolute path for $path - Since that's what needs to be
+		 * written into the coreconfig.  Does a directory switch to figure it out.
+		 *
+		 * @param String $path - Path provided to the script
+		 * @return String Full absolute path to this path
+		 */
+		private static function calculateAbsoluteDestPath($path) {
+			$currentDir = getcwd();
+			chdir($path);
+			$newDir = getcwd();
+			chdir($currentDir);
+			return $newDir;
 		}
 
 		/**
